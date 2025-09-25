@@ -2,6 +2,10 @@ package edu.jsu.mcis.cs310;
 
 import com.github.cliftonlabs.json_simple.*;
 import com.opencsv.*;
+import java.io.StringReader;
+import java.io.StringWriter;
+import java.util.ArrayList;
+import java.util.List;
 
 public class Converter {
     
@@ -73,38 +77,99 @@ public class Converter {
     
     @SuppressWarnings("unchecked")
     public static String csvToJson(String csvString) {
-        
-        String result = "{}"; // default return value; replace later!
+        String result = "";
         
         try {
-        
-            // INSERT YOUR CODE HERE
+            CSVReader reader = new CSVReader(new StringReader(csvString));
+            List<String[]> full = reader.readAll();
+            JsonObject json = new JsonObject();
+
+            String[] headers = full.get(0);
+            json.put("ColHeadings", headers);
             
+            JsonArray prodNums = new JsonArray();
+            JsonArray data = new JsonArray();
+
+            for (int i = 1; i < full.size(); i++) {
+                String[] row = full.get(i);
+                prodNums.add(row[0]);
+                
+                JsonArray array = new JsonArray();
+                for(int j = 1; j < row.length; j++) {
+                    String header = headers[j];
+                   if(header.equals("Season") || header.equals("Episode")){
+                       array.add(Integer.valueOf(row[j]));
+                   }       
+                   else {
+                       array.add(row[j]);
+                   }
+                }
+                data.add(array);
+            }
+            json.put("ProdNums", prodNums);  
+            json.put("Data", data);
+            
+            result = Jsoner.serialize(json).trim();
         }
         catch (Exception e) {
             e.printStackTrace();
         }
-        
-        return result.trim();
-        
+            return result;    
     }
     
     @SuppressWarnings("unchecked")
     public static String jsonToCsv(String jsonString) {
         
-        String result = ""; // default return value; replace later!
+        String result = "";
         
         try {
+            StringWriter writer = new StringWriter();
+            CSVWriter csvWriter = new CSVWriter(writer);
+            JsonObject json = (JsonObject) Jsoner.deserialize(jsonString);
             
-            // INSERT YOUR CODE HERE
+            List<String[]> all = new ArrayList<>();
+            JsonArray colHeadings = (JsonArray) json.get("ColHeadings");
+            JsonArray prodNums = (JsonArray) json.get("ProdNums");
+            JsonArray data = (JsonArray) json.get("Data");
             
+            String[] headerRow = new String[colHeadings.size()];
+            for (int i = 0; i < colHeadings.size(); i++){
+                headerRow[i] = colHeadings.get(i).toString();
+            }
+            all.add(headerRow);
+            
+            for (int i = 0; i < data.size(); i++){
+                JsonArray row = (JsonArray) data.get(i);
+                String[] strRow = new String[row.size() + 1];
+                strRow[0] = prodNums.get(i).toString();
+                for (int j = 0; j < row.size(); j++){
+                   Object value = row.get(j);
+                   String header = headerRow[j];
+                   if (value instanceof Number){
+                       if(header.equals("Season") || header.equals("Episode")){
+                        strRow[j + 1] = String.format("%02d", ((Number) value).intValue());
+                       }
+                       else{
+                        strRow[j + 1] = value.toString();
+                       }
+                        }
+                   else{
+                    strRow[j + 1] = value.toString();
+                   }
+                }
+            all.add(strRow);
+            }
+            
+            csvWriter.writeAll(all);
+            csvWriter.close();
+            result = writer.toString();
+
         }
         catch (Exception e) {
             e.printStackTrace();
         }
         
-        return result.trim();
-        
+        return result.trim();        
     }
     
 }
